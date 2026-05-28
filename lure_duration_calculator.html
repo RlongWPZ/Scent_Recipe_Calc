@@ -363,7 +363,7 @@
             <div class="results-grid">
                 <!-- Daily Pumping -->
                 <div class="result-card">
-                    <div class="result-header">📅 Daily Pumping (7x per week)</div>
+                    <div class="result-header">📅 Daily (every 24 hours)</div>
                     <div class="result-row">
                         <span class="result-label">Total Pumps:</span>
                         <span class="result-value"><span id="dailyTotalPumps">0</span></span>
@@ -377,13 +377,13 @@
                         <span class="result-value"><span id="dailyMonths">0</span> <span class="result-unit">months</span></span>
                     </div>
                 </div>
-                
+
                 <!-- Every Other Day -->
                 <div class="result-card featured">
-                    <div class="result-header">🔄 Every Other Day (3-4x per week)</div>
+                    <div class="result-header">🔄 Every Other Day (every 48 hours)</div>
                     <div class="result-row">
-                        <span class="result-label">Pumps per Week:</span>
-                        <span class="result-value"><span id="eodPumpsPerWeek">0</span></span>
+                        <span class="result-label">Total Pumps:</span>
+                        <span class="result-value"><span id="eodTotalPumps">0</span></span>
                     </div>
                     <div class="result-row">
                         <span class="result-label">Duration:</span>
@@ -395,9 +395,38 @@
                     </div>
                 </div>
             </div>
-            
+
+            <!-- Custom Interval Card -->
+            <div class="result-card" style="margin-top: 20px;">
+                <div class="result-header">🎛️ Custom Interval</div>
+                <div style="margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label style="font-weight: 600; color: #333;">Pump every:</label>
+                        <strong id="customIntervalLabel" style="font-size: 20px; color: #2c5530;">24 hours</strong>
+                    </div>
+                    <input type="range" id="customIntervalSlider" class="slider" min="0" max="20" value="6" step="1">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-top: 5px; position: relative;">
+                        <span>6 hrs</span>
+                        <span style="position: absolute; left: 50%; transform: translateX(-50%);">← hrs | days →</span>
+                        <span>30 days</span>
+                    </div>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Total Pumps:</span>
+                    <span class="result-value"><span id="customTotalPumps">0</span></span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Duration:</span>
+                    <span class="result-value"><span id="customWeeks">0</span> <span class="result-unit">weeks</span></span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Duration:</span>
+                    <span class="result-value"><span id="customMonths">0</span> <span class="result-unit">months</span></span>
+                </div>
+            </div>
+
             <div class="summary-box">
-                <strong>Summary:</strong> A <span id="summaryPouchSize">28 oz</span> pouch with <span id="summaryPumpVolume">3 ml</span> pumps will last approximately <strong><span id="summarydurationDaily">39 weeks</span></strong> with daily pumping, or <strong><span id="summarydurationEOD">78 weeks</span></strong> (about <strong><span id="summaryMonthsEOD">18 months</span></strong>) with every-other-day pumping.
+                <strong>Summary:</strong> A <span id="summaryPouchSize">21 oz</span> pouch with <span id="summaryPumpVolume">3 ml</span> pumps will last approximately <strong><span id="summarydurationDaily">0 weeks</span></strong> pumping daily, <strong><span id="summarydurationEOD">0 weeks</span></strong> every other day, or <strong><span id="summaryCustomDuration">0 weeks</span></strong> pumping every <span id="summaryCustomInterval">24 hours</span>.
             </div>
             
             <div class="conversion-note">
@@ -410,7 +439,7 @@
             <h3>📊 Deployment Duration Reference Tables</h3>
             <p>These tables show approximate deployment duration in weeks and months for standard pouch sizes and pump volumes.</p>
             
-            <h4 style="margin-top: 30px; color: #2c5530;">Daily Pumping (7x per week)</h4>
+            <h4 style="margin-top: 30px; color: #2c5530;">Daily Pumping (every 24 hours)</h4>
             
             <table class="reference-table">
                 <thead>
@@ -432,7 +461,7 @@
                 <tbody id="dailyTable"></tbody>
             </table>
             
-            <h4 style="margin-top: 30px; color: #2c5530;">Every Other Day Pumping (3.5x per week)</h4>
+            <h4 style="margin-top: 30px; color: #2c5530;">Every Other Day Pumping (every 48 hours)</h4>
             
             <table class="reference-table">
                 <thead>
@@ -459,63 +488,72 @@
     <script>
         // Constants
         const OZ_TO_ML = 29.5735;
-        const PUMPS_PER_WEEK_DAILY = 7; // 1 per day
-        const PUMPS_PER_WEEK_EOD = 3.5; // every other day
-        const DAYS_PER_MONTH = 30; // simplified for UI
-        
+        const DAYS_PER_MONTH = 30.44; // average days per month
+
+        // Non-linear slider stops (in hours).
+        // Indices 0–10: every-few-hours steps up to 48 h (displayed as hours).
+        // Indices 11–20: day steps 3–30 days (displayed as days).
+        const TIME_STOPS_HOURS = [
+             6,  8, 10, 12, 16, 18, 24, 30, 36, 42, 48,   // indices 0–10
+            72, 96, 120, 144, 168, 240, 336, 504, 672, 720  // indices 11–20 (3–30 days)
+        ];
+        // Default slider index = 6 → 24 hours
+
         // Standard pouch sizes for reference tables
         const STANDARD_SIZES = [4, 8, 12, 16, 20, 21, 24, 25, 28, 33];
         const PUMP_VOLUMES = [3, 3.5];
-        
+
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             setupEventListeners();
             generateReferenceTables();
             calculateDuration();
         });
-        
+
+        function formatInterval(hours) {
+            if (hours <= 48) return hours + ' hours';
+            return (hours / 24) + ' days';
+        }
+
         function setupEventListeners() {
             document.getElementById('pouchSlider').addEventListener('input', syncPouch);
             document.getElementById('pouchInput').addEventListener('input', syncPouch);
             document.getElementById('pumpVolumeSlider').addEventListener('input', syncPumpVolume);
             document.getElementById('pumpVolumeInput').addEventListener('input', syncPumpVolume);
+            document.getElementById('customIntervalSlider').addEventListener('input', syncCustomInterval);
         }
-        
+
         function syncPouch() {
             const slider = document.getElementById('pouchSlider');
             const input = document.getElementById('pouchInput');
-            
             if (event.target === slider) input.value = slider.value;
             if (event.target === input) slider.value = input.value;
-            
             calculateDuration();
         }
-        
+
         function syncPumpVolume() {
             const slider = document.getElementById('pumpVolumeSlider');
             const input = document.getElementById('pumpVolumeInput');
-            
             if (event.target === slider) input.value = slider.value;
             if (event.target === input) slider.value = input.value;
-            
             calculateDuration();
         }
-        
+
+        function syncCustomInterval() {
+            const hours = TIME_STOPS_HOURS[parseInt(document.getElementById('customIntervalSlider').value)];
+            document.getElementById('customIntervalLabel').textContent = formatInterval(hours);
+            calculateDuration();
+        }
+
         function setPouchSize(size) {
             document.getElementById('pouchSlider').value = size;
             document.getElementById('pouchInput').value = size;
             calculateDuration();
         }
-        
+
         function switchTab(tabName) {
-            document.querySelectorAll('.tab-panel').forEach(panel => {
-                panel.classList.remove('active');
-            });
-            
-            document.querySelectorAll('.nav-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
             if (tabName === 'calculator') {
                 document.getElementById('calculatorTab').classList.add('active');
                 document.querySelector('[onclick="switchTab(\'calculator\')"]').classList.add('active');
@@ -524,79 +562,86 @@
                 document.querySelector('[onclick="switchTab(\'reference\')"]').classList.add('active');
             }
         }
-        
+
         function calculateDuration() {
             const pouchOz = parseFloat(document.getElementById('pouchInput').value);
             const pumpVolumeML = parseFloat(document.getElementById('pumpVolumeInput').value);
-            
-            if (isNaN(pouchOz) || isNaN(pumpVolumeML) || pouchOz <= 0 || pumpVolumeML <= 0) {
-                return;
-            }
-            
-            // Convert oz to ml
+            if (isNaN(pouchOz) || isNaN(pumpVolumeML) || pouchOz <= 0 || pumpVolumeML <= 0) return;
+
             const pouchML = pouchOz * OZ_TO_ML;
-            
-            // Calculate total pumps available
             const totalPumps = pouchML / pumpVolumeML;
-            
-            // Daily pumping calculations
-            const dailyWeeks = totalPumps / PUMPS_PER_WEEK_DAILY;
-            const dailyMonths = totalPumps / DAYS_PER_MONTH;
-            
-            // Every other day calculations
-            const eodWeeks = totalPumps / PUMPS_PER_WEEK_EOD;
-            const eodMonths = totalPumps / DAYS_PER_MONTH * 2; // Double the duration
-            
+
+            // Daily (every 24 h)
+            const dailyDays   = totalPumps;                        // 1 pump/day
+            const dailyWeeks  = dailyDays / 7;
+            const dailyMonths = dailyDays / DAYS_PER_MONTH;
+
+            // Every other day (every 48 h)
+            const eodDays   = totalPumps * 2;
+            const eodWeeks  = eodDays / 7;
+            const eodMonths = eodDays / DAYS_PER_MONTH;
+
+            // Custom interval
+            const customIdx   = parseInt(document.getElementById('customIntervalSlider').value);
+            const customHours = TIME_STOPS_HOURS[customIdx];
+            const customDays  = totalPumps * (customHours / 24);
+            const customWeeks = customDays / 7;
+            const customMonths = customDays / DAYS_PER_MONTH;
+            const customLabel  = formatInterval(customHours);
+
             // Update daily results
             document.getElementById('dailyTotalPumps').textContent = totalPumps.toFixed(1);
-            document.getElementById('dailyWeeks').textContent = dailyWeeks.toFixed(1);
-            document.getElementById('dailyMonths').textContent = dailyMonths.toFixed(1);
-            
+            document.getElementById('dailyWeeks').textContent      = dailyWeeks.toFixed(1);
+            document.getElementById('dailyMonths').textContent     = dailyMonths.toFixed(1);
+
             // Update every-other-day results
-            document.getElementById('eodPumpsPerWeek').textContent = PUMPS_PER_WEEK_EOD.toFixed(1);
-            document.getElementById('eodWeeks').textContent = eodWeeks.toFixed(1);
-            document.getElementById('eodMonths').textContent = eodMonths.toFixed(1);
-            
+            document.getElementById('eodTotalPumps').textContent = totalPumps.toFixed(1);
+            document.getElementById('eodWeeks').textContent      = eodWeeks.toFixed(1);
+            document.getElementById('eodMonths').textContent     = eodMonths.toFixed(1);
+
+            // Update custom results
+            document.getElementById('customIntervalLabel').textContent = customLabel;
+            document.getElementById('customTotalPumps').textContent    = totalPumps.toFixed(1);
+            document.getElementById('customWeeks').textContent         = customWeeks.toFixed(1);
+            document.getElementById('customMonths').textContent        = customMonths.toFixed(1);
+
             // Update summary
-            document.getElementById('summaryPouchSize').textContent = pouchOz + ' oz';
-            document.getElementById('summaryPumpVolume').textContent = pumpVolumeML + ' ml';
-            document.getElementById('summarydurationDaily').textContent = dailyWeeks.toFixed(0) + ' weeks';
-            document.getElementById('summarydurationEOD').textContent = eodWeeks.toFixed(0) + ' weeks';
-            document.getElementById('summaryMonthsEOD').textContent = eodMonths.toFixed(1) + ' months';
+            document.getElementById('summaryPouchSize').textContent      = pouchOz + ' oz';
+            document.getElementById('summaryPumpVolume').textContent     = pumpVolumeML + ' ml';
+            document.getElementById('summarydurationDaily').textContent  = dailyWeeks.toFixed(1) + ' weeks';
+            document.getElementById('summarydurationEOD').textContent    = eodWeeks.toFixed(1) + ' weeks';
+            document.getElementById('summaryCustomDuration').textContent = customWeeks.toFixed(1) + ' weeks';
+            document.getElementById('summaryCustomInterval').textContent = customLabel;
         }
-        
+
         function generateReferenceTables() {
             const dailyTableBody = document.getElementById('dailyTable');
-            const eodTableBody = document.getElementById('eodTable');
-            
+            const eodTableBody   = document.getElementById('eodTable');
+
             STANDARD_SIZES.forEach(size => {
                 const sizeML = size * OZ_TO_ML;
-                
-                // Daily row
+
+                // Daily row (every 24 h)
                 const dailyRow = document.createElement('tr');
                 let dailyHTML = `<td>${size}</td><td>${sizeML.toFixed(1)}</td>`;
-                
                 PUMP_VOLUMES.forEach(pump => {
                     const totalPumps = sizeML / pump;
-                    const weeks = totalPumps / PUMPS_PER_WEEK_DAILY;
+                    const weeks  = totalPumps / 7;
                     const months = totalPumps / DAYS_PER_MONTH;
                     dailyHTML += `<td>${weeks.toFixed(1)}</td><td>${months.toFixed(1)}</td>`;
                 });
-                
                 dailyRow.innerHTML = dailyHTML;
                 dailyTableBody.appendChild(dailyRow);
-                
-                // Every-other-day row
+
+                // Every-other-day row (every 48 h)
                 const eodRow = document.createElement('tr');
                 let eodHTML = `<td>${size}</td><td>${sizeML.toFixed(1)}</td>`;
-                
                 PUMP_VOLUMES.forEach(pump => {
                     const totalPumps = sizeML / pump;
-                    const weeks = totalPumps / PUMPS_PER_WEEK_EOD;
-                    const months = weeks / 4.29; // More accurate: 30/7 = 4.29 weeks per month
+                    const weeks  = (totalPumps * 2) / 7;
+                    const months = (totalPumps * 2) / DAYS_PER_MONTH;
                     eodHTML += `<td>${weeks.toFixed(1)}</td><td>${months.toFixed(1)}</td>`;
                 });
-                
                 eodRow.innerHTML = eodHTML;
                 eodTableBody.appendChild(eodRow);
             });
